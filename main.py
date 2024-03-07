@@ -52,7 +52,7 @@ def  get_formation(api10):
     return False
     
 
-def get_wellbores(api10):
+def get_wellbores(api10:str):
     query = f"""
         SELECT api_10, uwi, wellbore, md, latitude, longitude, tvd 
         FROM `{project_id}.{dataset_id}.{table_id}`
@@ -61,18 +61,18 @@ def get_wellbores(api10):
         AND ( wellbore LIKE "LAT%" OR wellbore LIKE "STK%" )
         ORDER BY md ASC
     """
-
+    
+    # print(query)
     elevation = int(get_elevation(str(api10)))
-    print(query)
     query_job = client.query(query)
     results = list(query_job.result())
 
     longitude = [row.longitude for row in results]
     latitude = [row.latitude for row in results]
-    tvd = [(-1*row.tvd + elevation) for row in results] 
+    tvd = [(row.tvd - elevation) for row in results] 
     return latitude, longitude, tvd
 
-def find_min_max_expanded(latitude, longitude, expansion_distance=2500):
+def find_min_max_expanded(latitude, longitude, expansion_distance=5500):
     """
     Expand longitude and latitude min/max values by a specified distance in meters.
     
@@ -123,7 +123,7 @@ def get_geo(api10 : int, formation : str, map_type : str ="STRUCTURE"):
         AND lat BETWEEN {min_lat} AND {max_lat}
         AND long BETWEEN {min_long} AND {max_long}
     """
-    print(query)
+    # print(query)
     
     query_job = client.query(query)
     results = list(query_job.result())
@@ -170,11 +170,11 @@ def plot_wellbores(api10):
     query = f"""
         select api_10, uwi, wellbore,md, latitude, longitude , tvd
         from `{project_id}.{dataset_id}.{table_id}`
-        where uwi BETWEEN {api10}0000 and {api10}9999 
+        where uwi BETWEEN {api_10}0000 and {api_10}9999 
         AND tvd is not null 
         order by md ASC
     """
-    print(query)
+    # print(query)
 
     query_job = client.query(query)
 
@@ -269,7 +269,7 @@ def plot_surfaces_and_wellbores(api10s, surfaces):
     for surface in surfaces:
         try:
             # Create a grid for the surface
-            grid_x, grid_y = np.mgrid[min(surface['longs']):max(surface['longs']):100j, min(surface['lats']):max(surface['lats']):100j]
+            grid_x, grid_y = np.mgrid[min(surface['longs']):max(surface['longs']):5j, min(surface['lats']):max(surface['lats']):5j]
             
             # Try cubic interpolation
             grid_z = griddata((surface['longs'], surface['lats']), surface['vals'], (grid_x, grid_y), method='cubic')
@@ -286,7 +286,7 @@ def plot_surfaces_and_wellbores(api10s, surfaces):
         # Get wellbore data
         wellbore_lats, wellbore_longs, wellbore_md = get_wellbores(api10)
         ax.scatter(wellbore_longs, wellbore_lats, wellbore_md, c='brown', s=3, marker='o', label='Wellbore', linewidths=0, alpha=0.8)
-        # ax.plot(wellbore_longs, wellbore_lats, wellbore_md, c='black', label='Wellbore', alpha=0.7)
+        ax.plot(wellbore_longs, wellbore_lats, wellbore_md, c='black', label='Wellbore', alpha=0.7)
 
     # Add labels and legend
     ax.set_xlabel('Longitude')
@@ -299,13 +299,13 @@ def plot_surfaces_and_wellbores(api10s, surfaces):
 def get_surface_data(api_key, surface_codes):
     surfaces = []
     # colors = ['Accent', 'Accent_r', 'Blues', 'Blues_r', 'BrBG', 'BrBG_r', 'BuGn', 'BuGn_r', 'BuPu', 'BuPu_r', 'CMRmap', 'CMRmap_r', 'Dark2', 'Dark2_r', 'GnBu', 'GnBu_r', 'Grays', 'Greens', 'Greens_r', 'Greys', 'Greys_r', 'OrRd', 'OrRd_r', 'Oranges', 'Oranges_r', 'PRGn', 'PRGn_r', 'Paired', 'Paired_r', 'Pastel1', 'Pastel1_r', 'Pastel2', 'Pastel2_r', 'PiYG', 'PiYG_r', 'PuBu', 'PuBuGn', 'PuBuGn_r', 'PuBu_r', 'PuOr', 'PuOr_r', 'PuRd', 'PuRd_r', 'Purples', 'Purples_r', 'RdBu', 'RdBu_r', 'RdGy', 'RdGy_r', 'RdPu', 'RdPu_r', 'RdYlBu', 'RdYlBu_r', 'RdYlGn', 'RdYlGn_r', 'Reds', 'Reds_r', 'Set1', 'Set1_r', 'Set2', 'Set2_r', 'Set3', 'Set3_r', 'Spectral', 'Spectral_r', 'Wistia', 'Wistia_r', 'YlGn', 'YlGnBu', 'YlGnBu_r', 'YlGn_r', 'YlOrBr', 'YlOrBr_r', 'YlOrRd', 'YlOrRd_r', 'afmhot', 'afmhot_r', 'autumn', 'autumn_r', 'binary', 'binary_r', 'bone', 'bone_r', 'brg', 'brg_r', 'bwr', 'bwr_r', 'cividis', 'cividis_r', 'cool', 'cool_r', 'coolwarm', 'coolwarm_r', 'copper', 'copper_r', 'cubehelix', 'cubehelix_r', 'flag', 'flag_r', 'gist_earth', 'gist_earth_r', 'gist_gray', 'gist_gray_r', 'gist_grey', 'gist_heat', 'gist_heat_r', 'gist_ncar', 'gist_ncar_r', 'gist_rainbow', 'gist_rainbow_r', 'gist_stern', 'gist_stern_r', 'gist_yarg', 'gist_yarg_r', 'gist_yerg', 'gnuplot', 'gnuplot2', 'gnuplot2_r', 'gnuplot_r', 'gray', 'gray_r', 'grey', 'hot', 'hot_r', 'hsv', 'hsv_r', 'inferno', 'inferno_r', 'jet', 'jet_r', 'magma', 'magma_r', 'nipy_spectral', 'nipy_spectral_r', 'ocean', 'ocean_r', 'pink', 'pink_r', 'plasma', 'plasma_r', 'prism', 'prism_r', 'rainbow', 'rainbow_r', 'seismic', 'seismic_r', 'spring', 'spring_r', 'summer', 'summer_r', 'tab10', 'tab10_r', 'tab20', 'tab20_r', 'tab20b', 'tab20b_r', 'tab20c', 'tab20c_r', 'terrain', 'terrain_r', 'turbo', 'turbo_r', 'twilight', 'twilight_r', 'twilight_shifted', 'twilight_shifted_r', 'viridis', 'viridis_r', 'winter', 'winter_r']
-    # colors = [  'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
-            # 'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
-            # 'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
+    colors = [  'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+            'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+            'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
     # colors = ['viridis', 'plasma', 'inferno', 'magma', 'cividis']
-    colors = ['Pastel1', 'Pastel2', 'Paired', 'Accent',
-            'Dark2', 'Set1', 'Set2', 'Set3',
-            'tab10', 'tab20', 'tab20b', 'tab20c']
+    # colors = ['Pastel1', 'Pastel2', 'Paired', 'Accent',
+    #         'Dark2', 'Set1', 'Set2', 'Set3',
+    #         'tab10', 'tab20', 'tab20b', 'tab20c']
     for code in surface_codes:
         clr=colors[random.randint(0,len(colors)-1)]
         lats, longs, vals = get_geo(api_key, code)
@@ -319,28 +319,179 @@ def get_surface_data(api_key, surface_codes):
         surfaces.append(surface)
     return surfaces
 
+def get_wellbores_from_polygon(polygon,surfaces) :
+    query = f"""
+        SELECT dir.api_10, dir.longitude, dir.latitude, dir.md, dir.tvd
+        FROM `siros-tech.develop.lg_directionals_24_02` dir
+        WHERE ST_CONTAINS(
+            ST_GEOGFROMTEXT(
+                'POLYGON(({polygon}))'), 
+            ST_GEOGPOINT(longitude, latitude)) order by api_10, md
+    """
+    query_job = client.query(query)
+    results = list(query_job.result())
+
+    lats = [row.latitude for row in results]
+    longs = [row.longitude for row in results]
+    md = [row.md for row in results]
+    tvd = [row.tvd for row in results]
+
+    
+    # Plotting
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.scatter(lats, longs, tvd, c='r', marker='o', s=1 )
+
+    formtions_list = ', '.join([f"'{elem}'" for elem in surfaces])
+    formations_query = f"""
+        SELECT  formation, map_type, long, lat, value as depth
+        FROM `siros-tech.develop.das_geology_10_24_23` 
+        WHERE map_type = 'STRUCTURE' and formation IN ({formtions_list}) and 
+        ST_CONTAINS(ST_GEOGFROMTEXT('POLYGON((-103.64803185718695 48.0246192603926,-103.5838470682935 48.02446091270679,-103.58379619616841 47.99326020338409,-103.64816832746658  47.99327398116597,-103.64803185718695 48.0246192603926))'), 
+  ST_GEOGPOINT(long, lat))"""
+    query_job = client.query(formations_query)
+    results = list(query_job.result())
+
+    lats = [row.lat for row in results]
+    longs = [row.long for row in results]
+    depth = [row.depth for row in results]
+
+
+    # Assuming you have your depth and corresponding coordinates stored in arrays or lists
+    depths = depth  # Your 1D array or list of depth values
+    x_coords = lats  # Your 1D array or list of x coordinates
+    y_coords = longs  # Your 1D array or list of y coordinates
+
+    # Generate a regular grid for interpolation
+    x_min, x_max = min(x_coords), max(x_coords)
+    y_min, y_max = min(y_coords), max(y_coords)
+    x_grid, y_grid = np.meshgrid(np.linspace(x_min, x_max, 100), np.linspace(y_min, y_max, 100))
+
+    # Interpolate depth values onto the regular grid
+    z_grid = griddata((x_coords, y_coords), depths, (x_grid, y_grid), method='linear')
+
+    # Create a 3D plot
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Plot the surface
+    surf = ax.plot_surface(x_grid, y_grid, z_grid, cmap='viridis')
+
+
+    # ax.plot_surface(lats, longs, np.array(depth), edgecolor='none', alpha=0.5)
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.set_zlabel('MD')
+    ax.set_zlim(max(md), min(md))
+
+    plt.show()
+
+    return lats, longs, tvd
+
+def dsu(): 
+    surfaces = """
+        SELECT  formation, map_type, long, lat, value as depth
+        FROM `siros-tech.develop.das_geology_10_24_23` 
+        WHERE map_type = 'STRUCTURE' and formation IN ("TF1","TF3") and 
+        ST_CONTAINS(ST_GEOGFROMTEXT('POLYGON((-103.64803185718695 48.0246192603926,-103.5838470682935 48.02446091270679,-103.58379619616841 47.99326020338409,-103.64816832746658  47.99327398116597,-103.64803185718695 48.0246192603926))'), 
+  ST_GEOGPOINT(long, lat))"""
+
+    wellbores = """
+        SELECT dir.api_10, dir.longitude, dir.latitude, dir.md, dir.tvd
+        FROM `siros-tech.develop.lg_directionals_24_02` dir
+        WHERE ST_CONTAINS(
+            ST_GEOGFROMTEXT(
+                'POLYGON((-103.64803185718695 48.0246192603926,-103.5838470682935 48.02446091270679,-103.58379619616841 47.99326020338409,-103.64816832746658  47.99327398116597,-103.64803185718695 48.0246192603926))'), 
+            ST_GEOGPOINT(longitude, latitude)) order by api_10, md
+    """
+
+    elevation = 2223
+    query_job = client.query(wellbores)
+    results = list(query_job.result())
+    longitude = [row.longitude for row in results]
+    latitude = [row.latitude for row in results]
+    tvd = [(row.md - elevation) for row in results] 
+
+    # Formation section
+    query_surf = client.query(surfaces)
+    results_surf = list(query_surf.result())
+
+    # Initialize lists to hold surface data
+    surf_long = []
+    surf_lat = []
+    surf_depth = []
+
+    # Iterate through the results and store surface data
+    for row in results_surf:
+        surf_long.append(float(row.long))
+        surf_lat.append(float(row.lat))
+        surf_depth.append(float(row.depth))
+
+    # Plotting
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+
+    try:
+        # Create a grid for the surface
+        grid_x, grid_y = np.mgrid[min(surf_long):max(surf_long):50j, min(surf_lat):max(surf_lat):50j]
+
+        # Perform cubic interpolation
+        grid_z = griddata((surf_long, surf_lat), surf_depth, (grid_x, grid_y), method='cubic')
+    except QhullError:
+        # Fallback to linear interpolation if cubic fails
+        print("Cubic interpolation failed due to insufficient points, falling back to linear.")
+        grid_z = griddata((surf_long, surf_lat), surf_depth, (grid_x, grid_y), method='linear')
+
+    # Plot the surface
+    ax.plot_surface(grid_x, grid_y, grid_z, cmap="PuBuGn", edgecolor='none', alpha=0.5)
+
+    # Overlay wellbore data
+    # ax.scatter(longitude, latitude, tvd, c='r', marker='o')
+    ax.set_xlabel('Longitude')
+    ax.set_ylabel('Latitude')
+    ax.set_zlabel('MD')
+    ax.set_zlim(max(tvd), min(tvd))
+
+    plt.show()
+
+    return True
+
+polygon = "-103.64803185718695 48.0246192603926,-103.5838470682935 48.02446091270679,-103.58379619616841 47.99326020338409,-103.64816832746658  47.99327398116597,-103.64803185718695 48.0246192603926"
+# surface_codes = ["TF1", "TF2"]
+# surfaces = get_surface_data(api_10, surface_codes)
+
+
+get_wellbores_from_polygon(polygon=polygon,surfaces=["TF2"])
+
+
+
 # api_10 = 3305306144
-# api_10 = 3306101354
+api_10 = 3306101354
 # api_10 = 3305304974
 # api_10 = 3305304840
 # api_10 = 3310501765
 # api_10 = 3302500638 #surface_codes = ["TF2","TF3",]
 # api_10 = 3305307416
 
-# api_10 = 3310503936
+api_10 = 3310503936
 # api_10 = 3300701195
-api_10 = 3306104075
+# api_10 = 3306104075
+# api_10 = 3310503936
+# api_10 = 
 # plot_wellbores(3305303948)
 
 
 # surf_and_wellbore(api_10)
 
 # surface_codes = ["UB","MB","LB","PRNG","TF1","TF2","TF3"]
-# surface_codes = ["LB","PRNG","TF1", "TF2"]
 # surface_codes = ["UB","MB","LB","TF1","TF2","TF3"]
-surface_codes = ["UB","TF1"]
-# surface_codes = ["UB","MB","LB"]
 # surface_codes = []
+# surface_codes = ["UB","MB","LB"]
+
+# api_10 = 3305306389 #TF2
+# api_10 = 3305306390 #
+# surface_codes = ["MB","LB","PRNG"]
 
 # 3305309995	TF1
 # 3305309982	MB
@@ -349,5 +500,4 @@ surface_codes = ["UB","TF1"]
 # 3305309985	TF1
 
 
-surfaces = get_surface_data(api_10, surface_codes)
-plot_surfaces_and_wellbores([api_10],surfaces=surfaces)
+# plot_surfaces_and_wellbores([api_10],surfaces=surfaces)
