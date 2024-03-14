@@ -1,6 +1,7 @@
 import numpy as np
 import csv
 import math
+import random
 import matplotlib.pyplot as plt
 from scipy.spatial import QhullError
 from scipy.interpolate import griddata
@@ -416,7 +417,8 @@ def get_wellbores_from_polygon(polygon) :
                 'POLYGON(({polygon}))'), 
             ST_GEOGPOINT(longitude, latitude)) 
         AND tvd IS NOT NULL 
-        AND ( wellbore LIKE "LAT%" OR wellbore LIKE "STK%" )    
+        AND ( wellbore LIKE "LAT%" OR wellbore LIKE "STK%" )
+        # OR wellbore LIKE "DIR" )    
         order by api_10, md
     """
     query_job = client.query(query)
@@ -438,7 +440,8 @@ def get_wellbores_from_polygon(polygon) :
     results2 = list(query_job2.result())
 
 
-    elevations = {}
+    elevations = {'3305301403' : 2323}
+
     for row in results2:
         api_10 = str(row.api_10)  # Ensure api_10 is a string, which will be used as the dictionary key
         kb_elevation = get_elevation(api_10)  # Call your function to get the elevation based on api_10
@@ -446,7 +449,6 @@ def get_wellbores_from_polygon(polygon) :
         # Store the elevation in the dictionary with api_10 as the key
         elevations[api_10] = kb_elevation
 
-    print(elevations["3305302074"])
 
     
     lats = [row.latitude for row in results]
@@ -509,6 +511,14 @@ def plot_wellbores_from_polygon(polygon,surfaces) :
 
     return lats, longs, tvd
 
+
+def random_color():
+    colors = [  'Greys', 'Purples', 'Blues', 'Greens', 'Oranges', 'Reds',
+            'YlOrBr', 'YlOrRd', 'OrRd', 'PuRd', 'RdPu', 'BuPu',
+            'GnBu', 'PuBu', 'YlGnBu', 'PuBuGn', 'BuGn', 'YlGn']
+    return colors[random.randint(0,len(colors)-1)]
+
+
 def dsu(): 
     surfaces = """
         SELECT  formation, map_type, long, lat, value as depth
@@ -554,7 +564,7 @@ def dsu():
 
     try:
         # Create a grid for the surface
-        grid_x, grid_y = np.mgrid[min(surf_long):max(surf_long):50j, min(surf_lat):max(surf_lat):50j]
+        grid_x, grid_y = np.mgrid[min(surf_long):max(surf_long):25j, min(surf_lat):max(surf_lat):25j]
 
         # Perform cubic interpolation
         grid_z = griddata((surf_long, surf_lat), surf_depth, (grid_x, grid_y), method='cubic')
@@ -564,15 +574,15 @@ def dsu():
         grid_z = griddata((surf_long, surf_lat), surf_depth, (grid_x, grid_y), method='linear')
 
     # Plot the surface
-    ax.plot_surface(grid_x, grid_y, grid_z, cmap="PuBuGn", edgecolor='none', alpha=0.5)
+    ax.plot_surface(grid_x, grid_y, grid_z, cmap=random_color(), edgecolor='none', alpha=0.5)
 
     # Overlay wellbore data
     # ax.scatter(longitude, latitude, tvd, c='r', marker='o')
     ax.set_xlabel('Longitude')
     ax.set_ylabel('Latitude')
-    ax.set_zlabel('MD')
+    ax.set_zlabel('TVD')
     ax.set_zlim(max(tvd), min(tvd))
-
+    plt.legend()
     plt.show()
 
     return True
@@ -586,9 +596,9 @@ polygon_shaply = Polygon([
     (-103.64803185718695, 48.0246192603926)
     ])
 surface_codes = ["UB","PRNG"]
-polygon_extended = get_scaled_polygon(polygon_shaply,6)
+polygon_extended = get_scaled_polygon(polygon_shaply,3)
 P_wellbores = get_wellbores_from_polygon(polygon=polygon_bq)
-# plot_polygons_areas(polygon_shaply, polygon_extended)
+plot_polygons_areas(polygon_shaply, polygon_extended)
 
 
 
@@ -607,6 +617,7 @@ def get_structure_data(polygon_extended, surface_codes, wellbores_data):
     # Overlay wellbore data as 3D scatter plot
     ax.scatter(wellbore_longs, wellbore_lats, wellbore_tvd_negative, c='red', marker='o', s=2, label='Wellbores')
 
+    proxy_artists = []  # List to hold proxy artists for the legend
 
     # Loop through each surface code to fetch and plot data separately
     for code in surface_codes:
@@ -633,8 +644,9 @@ def get_structure_data(polygon_extended, surface_codes, wellbores_data):
             grid_z = griddata((longs, lats), values, (grid_x, grid_y), method='cubic')
 
             # Plot 3D surface for the current formation
-            ax.plot_surface(grid_x, grid_y, grid_z, cmap='viridis', edgecolor='none', alpha=0.5, label=code)
-
+            color = random_color()
+            ax.plot_surface(grid_x, grid_y, grid_z, cmap=color, edgecolor='none', alpha=0.5, label=code)
+            # proxy_artists.append(Patch(color=color, label=code))
     
 
     ax.set_xlabel('Longitude')
@@ -644,6 +656,7 @@ def get_structure_data(polygon_extended, surface_codes, wellbores_data):
 
     # Handling legend for multiple formations might be tricky due to how matplotlib handles legends for 3D surfaces.
     # Consider adding a custom legend or annotating each surface plot if necessary.
+    plt.legend()
 
     plt.show()
 # Example call to the function (adjust parameters as needed)
