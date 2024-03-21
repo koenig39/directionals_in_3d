@@ -11,3 +11,4 @@ Example of a LAS file: "29757-CBL.las"
 
 ![LAS log example](/docs/las_log.png)
 ![LAS log example](/docs/las_log_zoomed.png)
+![LAS log example](/docs/las_log_zoomed_1.png)

@@ -2,14 +2,16 @@ import lasio
 import pandas as pd
 import matplotlib.pyplot as plt
 
-filename = "29757-CBL.las"
+filename = "./las_files/29757-CBL.las"
+# filename = "./las_files/29757-DTM.las"
 las = lasio.read(filename)
 plt.figure(figsize=(16, 8))
 for item in las.curves:
-    if item.mnemonic == "DEPT":
+    print(item)
+    if item.mnemonic == "DEPTH":
         depthUnit = item.unit
         continue
-    plt.plot(las[item.mnemonic],las["DEPT"],label=f"{item.descr} / {item.unit}")
+    plt.plot(las[item.mnemonic],las["DEPTH"],label=f"{item.mnemonic} / {item.descr} / {item.unit}")
 
 # plt.xscale('log')        
 
