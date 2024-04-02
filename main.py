@@ -3,11 +3,14 @@ import csv
 import math
 import random
 import os
+import pandas as pd
+import json
 import matplotlib.pyplot as plt
 from scipy.spatial import QhullError
 from scipy.interpolate import griddata
 from shapely.geometry import MultiPolygon, Polygon
 from shapely.ops import transform
+from welltrajconvert.wellbore_trajectory import *
 import pyproj
 from functools import partial
 from google.cloud import bigquery
@@ -15,7 +18,9 @@ from google.cloud import bigquery
 # Replace 'your_project_id' with your actual Google Cloud project ID
 # Replace 'your_dataset' and 'your_table' with your dataset and table names
 
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\ltp\directionals_in_3d\siros-bq.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\ltp\directionals_in_3d\siros-cn-bq.json"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\ap\2024\directionals_in_3d\siros-bq-ashton.json"
+# os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = r"C:\Users\ap\2024\directionals_in_3d\siros-cn-bq.json"
 project_id = 'siros-tech'
 dataset_id = 'develop'
 table_id = 'lg_directionals_24_02'
@@ -601,19 +606,19 @@ polygon_shaply = Polygon([
     ])
 
 polygon_bq = "-102.51434552586815 47.78966776883909,-102.40718073138275 47.789729842381846,-102.40704932435575 47.77504854184551,-102.51434615693474 47.77543016818139,-102.51699071767595 47.786859697481646,-102.51434552586815 47.78966776883909"
-polygon_shaply = Polygon([
-    (-102.51434552586815, 47.78966776883909),
-    (-102.40718073138275, 47.789729842381846),
-    (-102.40704932435575, 47.77504854184551),
-    (-102.51434615693474, 47.77543016818139),
-    (-102.51699071767595, 47.786859697481646),
-    (-102.51434552586815, 47.78966776883909)
-    ])
+# polygon_shaply = Polygon([
+#     (-102.51434552586815, 47.78966776883909),
+#     (-102.40718073138275, 47.789729842381846),
+#     (-102.40704932435575, 47.77504854184551),
+#     (-102.51434615693474, 47.77543016818139),
+#     (-102.51699071767595, 47.786859697481646),
+#     (-102.51434552586815, 47.78966776883909)
+#     ])
 
 surface_codes = ["UB","PRNG"]
-polygon_extended = get_scaled_polygon(polygon_shaply,3)
-P_wellbores = get_wellbores_from_polygon(polygon=polygon_bq)
-plot_polygons_areas(polygon_shaply, polygon_extended)
+# polygon_extended = get_scaled_polygon(polygon_shaply,3)
+# P_wellbores = get_wellbores_from_polygon(polygon=polygon_bq)
+# plot_polygons_areas(polygon_shaply, polygon_extended)
 
 
 
@@ -674,8 +679,64 @@ def get_structure_data(polygon_extended, surface_codes, wellbores_data):
     plt.legend()
 
     plt.show()
+
+
+def get_survey_data(api_10):
+    
+    kb_elev = get_elevation(api_10)
+    print(kb_elev)
+    
+    client = bigquery.Client()
+    query = f"""
+        SELECT uwi, api_10, wellbore, md, tvd, inc, azi, ns, ns_dir, ew, ew_dir, latitude, longitude
+        FROM `siros-tech.develop.lg_directionals_24_02`
+        WHERE api_10 = {api_10} 
+        ORDER BY md ASC
+    """
+    df = client.query(query).to_dataframe()
+    query_job = client.query(query)
+    results = list(query_job.result())
+
+    lats = [row.latitude for row in results]
+    longs = [row.longitude for row in results]
+    azim = [row.azi for row in results]
+    md = [row.md for row in results]
+    inc = [row.inc for row in results]
+    tvd_original = [row.tvd - kb_elev for row in results]
+
+    well = {
+        "wellId": str(api_10),
+        "md": md,
+        "inc": inc,
+        "azim": azim,
+"surface_latitude": lats[0],
+        "surface_longitude": longs[0],
+    }
+
+    traj = WellboreTrajectory(well)
+    traj.validate()
+    traj.calculate_survey_points()
+    md = [int(num) for num in traj.deviation_survey_obj.md]
+    tvd = [int(num) for num in traj.deviation_survey_obj.tvd]
+    tbl = zip(md, tvd)
+    print(tvd)
+    
+
+    fig, ax = plt.subplots()  # Create a figure containing a single axes.
+    ax.set_title(f'TVD vs MD , API 10:{api_10}')  # Add an axis title.
+    ax.set_xlabel('TVD')
+    ax.set_ylabel('MD')
+    
+    ax.plot(traj.deviation_survey_obj.tvd,traj.deviation_survey_obj.md, color="red", label="calculated TVD")  # Plot some data on the axes.
+    ax.plot(tvd_original,traj.deviation_survey_obj.md, color="green",label="original TVD")  # Plot some data on the axes.
+    ax.legend()  # Add a legend.
+    ax.invert_yaxis()
+    plt.show()
+
+    return True
+    
 # Example call to the function (adjust parameters as needed)
-get_structure_data(polygon_extended, surface_codes, P_wellbores)
+# get_structure_data(polygon_extended, surface_codes, P_wellbores)
 
 
 # get_structure_data(polygon_extended, surface_codes,P_wellbores)
@@ -709,8 +770,8 @@ get_structure_data(polygon_extended, surface_codes, P_wellbores)
 # api_10 = 3302500638 #surface_codes = ["TF2","TF3",]
 # api_10 = 3305307416
 
-api_10 = 3310503936
-# api_10 = 3300701195
+# api_10 = 3310503936
+api_10 = 3300701195
 # api_10 = 3306104075
 # api_10 = 3310503936
 # api_10 = 
@@ -724,7 +785,7 @@ api_10 = 3310503936
 
 # api_10 = 3305306389 #TF2
 # api_10 = 3305306390 #
-surface_codes = ["MB","LB","PRNG"]
+# surface_codes = ["MB","LB","PRNG"]
 
 # 3305309995	TF1
 # 3305309982	MB
@@ -734,3 +795,5 @@ surface_codes = ["MB","LB","PRNG"]
 
 
 # plot_surfaces_and_wellbores([api_10],surfaces=surfaces)
+
+get_survey_data(api_10)

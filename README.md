@@ -1,6 +1,7 @@
 # Directional survey and wellbore
 # main.py #
-
+![Wellbore segments](/docs/wellbore_segments.png)
+Wellbore segments are colored by formation
 
 # las.py #
 LAS Log Plotter
