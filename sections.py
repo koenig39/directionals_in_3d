@@ -4,7 +4,7 @@ import numpy as np
 
 # Define points and normals for planes and line segment points
 P1, N1 = np.array([0, 0, 1]), np.array([0, 0, 1])  # Plane 1: z = 1
-P2, N2 = np.array([0, 0, -1]), np.array([0, 0, -1])  # Plane 2: z = -1
+P2, N2 = np.array([0, 0, -1]), np.array([1, 2, -1])  # Plane 2: z = -1
 L1, L2 = np.array([-1, -1, -2]), np.array([1, 1, 2])  # Line segment
 
 

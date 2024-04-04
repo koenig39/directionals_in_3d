@@ -719,7 +719,7 @@ def get_survey_data(api_10):
     md = [int(num) for num in traj.deviation_survey_obj.md]
     tvd = [int(num) for num in traj.deviation_survey_obj.tvd]
     tbl = zip(md, tvd)
-    print(tvd)
+    print(tvd)git status
     
 
     fig, ax = plt.subplots()  # Create a figure containing a single axes.
